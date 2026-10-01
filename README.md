@@ -37,6 +37,7 @@ Escrow Contract
   |
   +---- Arbitrator
 
+  ```
   Each createEscrow() call creates a separate escrow contract with its own buyer, seller, arbitrator, balance, deadline, and state.
 
 ## Escrow States
