@@ -112,6 +112,7 @@ Release:
 
 ## Project Structure
 
+```text
 p2p-escrow/
 ├── contracts/
 │   ├── Escrow.sol
@@ -139,6 +140,7 @@ p2p-escrow/
 ├── tsconfig.json
 ├── .gitignore
 └── README.md
+```
 
 ## Technologies
 
