@@ -1,57 +1,158 @@
-# Sample Hardhat 3 Project (`mocha` and `ethers`)
+# P2P escrow Smart Contract
 
-This project showcases a Hardhat 3 project using `mocha` for tests and the `ethers` library for Ethereum interactions.
+A blockchain-based peer-to-peer escrow system implemented in Solidity using Hardhat 3 and Ethers.js.
 
-To learn more about Hardhat 3, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3](https://hardhat.org/hardhat3-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+The system allows a buyer to deposit ETH into an escrow contract, release the funds to the seller after successful delivery, raise a dispute, and use an arbitrator to resolve the dispute. A refund mechanism is also provided if the seller does not deliver within the specified block period.
 
 ## Project Overview
 
-This example project includes:
+The project consists of:
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using `mocha` and ethers.js
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+- Escrow.sol — handles the escrow lifecycle and ETH transfers.
+- EscrowFactory.sol — creates and tracks independent escrow contracts.
+- ReentrancyAttacker.sol — test contract used to verify reentrancy protection.
+- scripts/deploy.ts — deploys the EscrowFactory.
+- scripts/interact.ts — demonstrates the escrow transaction flow.
+- test/Escrow.ts — tests escrow functionality and security.
+- test/EscrowFactory.ts — tests factory functionality.
 
-## Usage
+## Architecture
 
-### Running Tests
+The system uses a factory-based multi-contract architecture.
 
-To run all the tests in the project, execute the following command:
+```text
+Buyer
+  |
+  | createEscrow()
+  v
+EscrowFactory
+  |
+  | deploys
+  v
+Escrow Contract
+  |
+  +---- Buyer
+  |
+  +---- Seller
+  |
+  +---- Arbitrator
 
-```shell
-npx hardhat test
-```
+  Each createEscrow() call creates a separate escrow contract with its own buyer, seller, arbitrator, balance, deadline, and state.
 
-You can also selectively run the Solidity or `mocha` tests:
+## Escrow States
 
-```shell
-npx hardhat test solidity
-npx hardhat test mocha
-```
+| State | Value | Meaning |
+|---|---:|---|
+| Created | 0 | Escrow created |
+| Funded | 1 | Buyer deposited ETH |
+| Released | 2 | Funds sent to seller |
+| Refunded | 3 | Funds returned to buyer |
+| Disputed | 4 | Buyer raised a dispute |
+| Resolved | 5 | Arbitrator resolved dispute |
 
-### Make a deployment to Sepolia
+## Security
+The contract uses OpenZeppelin's ReentrancyGuard and the Checks-Effects-Interactions pattern.
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+The functions release(), resolveDispute(), and refundAfterDeadline() use nonReentrant. State variables are updated before external ETH transfers, preventing recursive calls and double-spending.
 
-To run the deployment to a local chain:
+Access control is also implemented:
 
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
+| Action | Authorized Account |
+|---|---|
+| Deposit | Buyer |
+| Release | Buyer |
+| Dispute | Buyer |
+| Resolve dispute | Arbitrator |
+| Refund | Buyer |
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+## Testing
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
+The test suite covers escrow creation, deposits, releases, disputes, refunds, access control, invalid state transitions, double release, factory deployment, multiple escrows, and reentrancy protection.
 
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
+41 tests pass successfully.
 
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
+## Sepolia Deployment
 
-After setting the variable, you can run the deployment with the Sepolia network:
+EscrowFactory: 0x5C0E86501B195d2a400bC3f29f5f0361b329DFd9
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-```
+Sample Escrow:
+0x51d74F9A1CbE0801644C230e1d810f3F7C0dd13D
+
+### Demonstrated Flow
+
+```text
+createEscrow
+     ↓
+deposit 0.001 ETH
+     ↓
+release
+
+After deposit:
+
+Balance = 0.001 ETH
+State   = Funded (1)
+
+After release:
+
+Balance = 0 ETH
+State   = Released (2)
+
+### Transaction Hashes
+
+Create Escow:
+0xd49dbb2a20caca92b9e8f56ed5d61ff3ef54bddfa9ca531db0e511bd18bedc25
+
+Deposit:
+0xaa4ca477159fc03db86a1af7c219f73193235a3e4a12f8bc546b7572c8f281f3
+
+Release:
+0xeea72cc02fffefbe6dca06e6e51a007ff0ce2dad94ca704b07fed3a853b3a6f1
+
+## Project Structure
+
+p2p-escrow/
+├── contracts/
+│   ├── Escrow.sol
+│   ├── EscrowFactory.sol
+│   └── ReentrancyAttacker.sol
+├── scripts/
+│   ├── deploy.ts
+│   ├── interact.ts
+│   └── send-op-tx.ts
+├── test/
+│   ├── Escrow.ts
+│   └── EscrowFactory.ts
+├── screenshots/
+│   ├── 01-factory-deployment.png
+│   ├── 02-escrow-creation.png
+│   ├── 03-create-transaction.png
+│   ├── 04-deposit.png
+│   ├── 05-release.png
+│   ├── 06-terminal_factory-deployment.png
+│   ├── 07-terminal-deposit-and-release.png
+│   └── 08-tests.png
+├── hardhat.config.ts
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── .gitignore
+└── README.md
+
+## Technologies
+
+- Solidity 0.8.34
+- Hardhat 3
+- TypeScript
+- Ethers.js
+- OpenZeppelin
+- Sepolia Testnet
+- Etherscan
+- GitHub
+
+## Conclusion
+
+This project demonstrates a secure P2P escrow system with factory-based multi-contract deployment, access control, dispute resolution, refunds, reentrancy protection, and a successful Sepolia transaction flow.
+
+The implementation passes all 41 tests.
+
+
