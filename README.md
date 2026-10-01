@@ -98,6 +98,7 @@ After release:
 Balance = 0 ETH
 State   = Released (2)
 
+```
 ### Transaction Hashes
 
 Create Escow:
